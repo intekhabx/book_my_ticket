@@ -1,4 +1,4 @@
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../../../Backend Engineering/trying 2.0 auth/src/common/utils/jwt.utils.js";
+import {genereateAccessToken, genereateRefreshToken, verifyAccessToken, verifyRefreshToken} from "../../common/utils/jwt.utils.js"
 import pool from "../../common/config/db.config.js";
 import ApiError from '../../common/utils/api-error.utils.js';
 import bcrypt from 'bcrypt';
@@ -55,8 +55,8 @@ const login = async ({email, password}) =>{
   }
 
   // now we create access_token and refresh_token
-  const newAccessToken = generateAccessToken({id: user.id, email: user.email});
-  const newRefreshToken = generateRefreshToken({id: user.id});
+  const newAccessToken = genereateAccessToken({id: user.id, email: user.email});
+  const newRefreshToken = genereateRefreshToken({id: user.id});
   // we store refresh token in our db in hased form
   const hashedRefreshToken = makeTokenHashed(newRefreshToken);
   await pool.query(
@@ -93,8 +93,8 @@ const refresh = async (token)=>{
   }
 
   // now if the user is right then we update the access token and refresh token
-  const newAccessToken = generateAccessToken({id: user.id, email: user.email});
-  const newRefreshToken = generateRefreshToken({id: user.id});
+  const newAccessToken = genereateAccessToken({id: user.id, email: user.email});
+  const newRefreshToken = genereateRefreshToken({id: user.id});
 
   // we store newRefreshToken in db
   const hashedRefreshToken = makeTokenHashed(newRefreshToken);
@@ -115,4 +115,4 @@ const logout = async (userId)=>{
 }
 
 
-export default {register, login, logout, refresh};
+export {register, login, logout, refresh};

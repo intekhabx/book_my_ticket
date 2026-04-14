@@ -13,6 +13,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import pg from "pg";
 import pool from './src/common/config/db.config.js';
+import authRoute from './src/module/auth/auth.route.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +35,8 @@ const app = new express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+
+app.use('/api/auth', authRoute)
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");

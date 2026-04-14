@@ -7,8 +7,8 @@ const register = async(req, res)=>{
 }
 
 const login = async (req, res)=>{
-  const user = await authService.login(req.body);
-  ApiResponse.ok(res, "user logged in successfully", user);
+  const {user, newAccessToken, newRefreshToken} = await authService.login(req.body);
+  ApiResponse.ok(res, "user logged in successfully", {user, newAccessToken, newRefreshToken});
 }
 
 const logout = async(req, res)=>{

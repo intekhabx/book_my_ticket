@@ -1,7 +1,13 @@
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../../../Backend Engineering/trying 2.0 auth/src/common/utils/jwt.utils.js";
 import pool from "../../common/config/db.config.js";
 import ApiError from '../../common/utils/api-error.utils.js';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
+
+const makeTokenHashed = (token)=>{
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 
 const register = async ({first_name, last_name, email, password})=>{
@@ -48,10 +54,56 @@ const login = async ({email, password}) =>{
     throw ApiError.unAuthorize("invalid email or password");
   }
 
-  // now we create access_token and refresh_token later
+  // now we create access_token and refresh_token
+  const newAccessToken = generateAccessToken({id: user.id, email: user.email});
+  const newRefreshToken = generateRefreshToken({id: user.id});
+  // we store refresh token in our db in hased form
+  const hashedRefreshToken = makeTokenHashed(newRefreshToken);
+  await pool.query(
+    `UPDATE users SET refresh_token = $1 WHERE id = $2`,
+    [hashedRefreshToken, user.id]
+  )
+
+  return {user, newAccessToken, newRefreshToken};
+}
 
 
-  return {user};
+const refresh = async (token)=>{
+  if(!token){
+    throw ApiError.unAuthorize("token not found - refresh token is missing");
+  }
+
+  // we check the token is created with our secret
+  const decoded = verifyRefreshToken(token);
+
+  //we find user on the basis of id that we gave in the token
+  const result = await pool.query(
+    `SELECT refresh_token, id, email FROM users WHERE id = $1`,
+    [decoded.id]
+  )
+
+  if(result.rowCount === 0){
+    throw ApiError.unAuthorize("user no longer exist")
+  }
+
+  // now we compare db stored token and that token came from user
+  const user = result.rows[0];
+  if(user.refresh_token !== makeTokenHashed(token)){
+    throw ApiError.unAuthorize("Invalid refresh token — please log in again");
+  }
+
+  // now if the user is right then we update the access token and refresh token
+  const newAccessToken = generateAccessToken({id: user.id, email: user.email});
+  const newRefreshToken = generateRefreshToken({id: user.id});
+
+  // we store newRefreshToken in db
+  const hashedRefreshToken = makeTokenHashed(newRefreshToken);
+  await pool.query(
+    `UPDATE users SET refresh_token = $1 WHERE id = $2`,
+    [hashedRefreshToken, user.id]
+  )
+
+  return {user, newAccessToken, newRefreshToken};
 }
 
 
@@ -63,4 +115,4 @@ const logout = async (userId)=>{
 }
 
 
-export default {register, login, logout};
+export default {register, login, logout, refresh};

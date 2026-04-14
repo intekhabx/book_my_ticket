@@ -14,6 +14,8 @@ import cors from "cors";
 import pg from "pg";
 import pool from './src/common/config/db.config.js';
 import authRoute from './src/module/auth/auth.route.js';
+import cookieParser from 'cookie-parser';
+import { isLoggedIn } from './src/module/auth/auth.middleware.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,14 +37,15 @@ const app = new express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+app.use(cookieParser())
 
 app.use('/api/auth', authRoute)
 
-app.get("/", (req, res) => {
+app.get("/", isLoggedIn, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 //get all seats
-app.get("/seats", async (req, res) => {
+app.get("/seats", isLoggedIn, async (req, res) => {
   const result = await pool.query("select * from seats"); // equivalent to Seats.find() in mongoose
   res.send(result.rows);
 });

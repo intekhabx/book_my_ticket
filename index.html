@@ -26,8 +26,11 @@
         >
           ChaiCode Cinema - Now Showing<br />
           <br />
+          <span>
+            <button id="logout" class="float-right px-4 py-2 rounded-full bg-red-400 text-white text-xl hover:bg-red-500">Logout</button>
+          </span>
           <span class="text-red-400">
-            <span class="font-bold">Dhurandhar The Revenge</span>
+            <span class="font-bold ml-16">Dhurandhar The Revenge</span>
           </span>
         </h1>
         <p class="text-slate-400 text-lg">Jassi ko ghar ki yaad kyu nhi aai?</p>
@@ -68,9 +71,108 @@
     </div>
 
     <script>
+      // Helper function to refresh access token
+      async function refreshAccessToken() {
+        try {
+          const res = await fetch('/api/auth/refresh-token', {
+            method: 'POST',
+            credentials: 'include', // Include cookies (refresh token)
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            console.log('Refresh response:', data);
+            // Check if data.data exists and has newAccessToken
+            if (data.data && data.data.newAccessToken) {
+              localStorage.setItem('accessToken', data.data.newAccessToken);
+              console.log('Token refreshed successfully');
+              return data.data.newAccessToken;
+            } else if (data.newAccessToken) {
+              localStorage.setItem('accessToken', data.newAccessToken);
+              console.log('Token refreshed successfully');
+              return data.newAccessToken;
+            }
+          } else {
+            console.error('Refresh failed with status:', res.status);
+            // Only logout if refresh token is also expired (after 7 days)
+            localStorage.removeItem('accessToken');
+            window.location.href = '/login';
+          }
+          return null;
+        } catch (error) {
+          console.error('Token refresh failed:', error);
+          localStorage.removeItem('accessToken');
+          window.location.href = '/login';
+          return null;
+        }
+      }
+
+      // Helper function to make authenticated API calls with auto-refresh
+      async function authenticatedFetch(url, options = {}) {
+        let token = localStorage.getItem('accessToken');
+        
+        if (!token) {
+          console.error('No token found');
+          window.location.href = '/login';
+          return null;
+        }
+
+        const defaultOptions = {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            ...options.headers
+          },
+          ...options
+        };
+
+        let res = await fetch(url, defaultOptions);
+
+        // If token expired (401), refresh and retry once
+        if (res.status === 401) {
+          console.log('Got 401, attempting token refresh...');
+          const newToken = await refreshAccessToken();
+          if (!newToken) {
+            console.error('Token refresh returned null');
+            return res; // Redirect already happened in refreshAccessToken
+          }
+
+          // Retry with new token
+          defaultOptions.headers['Authorization'] = `Bearer ${newToken}`;
+          console.log('Retrying request with new token');
+          res = await fetch(url, defaultOptions);
+        }
+
+        return res;
+      }
+
       async function run() {
         const tbl = document.getElementById("tbl");
-        const res = await fetch("/seats");
+        
+        // Get token from localStorage
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          console.log('No token found, redirecting to login');
+          window.location.href = '/login';
+          return;
+        }
+
+        // Send token in Authorization header using authenticated fetch
+        const res = await authenticatedFetch("/seats");
+        
+        if (!res || !res.ok) {
+          console.error('Failed to load seats:', res?.status);
+          // Don't redirect immediately on initial load failure - try once more
+          const retryRes = await authenticatedFetch("/seats");
+          if (!retryRes || !retryRes.ok) {
+            window.location.href = '/login';
+            return;
+          }
+        }
+
         const resarray = await res.json();
         const j = resarray.sort((a, b) => a.id - b.id);
         let tr;
@@ -109,7 +211,9 @@
               const name = prompt("Enter your name");
               if (!name) return;
 
-              const res = await fetch(`/${id}/${name}`, { method: "PUT" });
+              const res = await authenticatedFetch(`/${id}/${name}`, { 
+                method: "PUT"
+              });
               const data = await res.json();
 
               if (data.error) {
@@ -136,6 +240,27 @@
         }
       }
       run();
+
+      const logout = document.querySelector('#logout');
+      logout.addEventListener('click', async()=>{
+        try {
+          const res = await authenticatedFetch(`/api/auth/logout`, { 
+            method: "POST"
+          });
+          
+          if (res.ok) {
+            // Clear from localStorage
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            // Redirect to login
+            window.location.href = '/login';
+          } else {
+            alert('Logout failed');
+          }
+        } catch (error) {
+          alert('Error during logout: ' + error);
+        }
+      });
     </script>
   </body>
 </html>

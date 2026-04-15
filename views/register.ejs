@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register - ChaiCode Cinema</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen">
+
+  <div class="w-full max-w-md bg-slate-900 p-8 rounded-2xl shadow-xl">
+
+    <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">
+      Register
+    </h2>
+
+    <div id="message" class="mb-4 p-3 rounded-lg hidden"></div>
+
+    <form action="/api/auth/register" method="POST" class="space-y-4">
+
+      <input
+        type="text"
+        id="first_name"
+        name="first_name"
+        placeholder="First Name"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <input
+        type="text"
+        id="last_name"
+        name="last_name"
+        placeholder="Last Name"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="Email"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Password"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <div class="flex items-center space-x-2 text-sm">
+        <input type="checkbox" name="terms" required />
+        <label>I agree to Terms & Conditions</label>
+      </div>
+
+      <button
+        type="submit" id="submitBtn"
+        class="w-full bg-green-500 hover:bg-green-600 transition p-3 rounded-lg font-semibold"
+      >
+        Create Account
+      </button>
+    </form>
+
+    <p class="text-center text-sm mt-4 text-gray-400">
+      Already have an account?
+      <a href="/login" class="text-cyan-400 hover:underline">Login</a>
+    </p>
+
+  </div>
+
+
+  <script>
+    const form = document.querySelector('form');
+    const messageDiv = document.querySelector("#message");
+    const submitBtn = document.getElementById("submitBtn")
+    
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+
+      const formData = {
+        first_name: document.getElementById('first_name').value,
+        last_name: document.getElementById('last_name').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Creating Account..."
+
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          credentials: 'include', // Ensure cookies are sent/received
+          body: JSON.stringify(formData)
+        });
+        const data = await response.json();
+
+        // Success
+        if (response.ok) {
+          messageDiv.textContent = '✅ Registration successful! Redirecting...';
+          messageDiv.className = 'mb-4 p-3 rounded-lg bg-green-600 text-white';
+          messageDiv.classList.remove('hidden');
+          
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1500)
+        }
+        else{
+          messageDiv.textContent = `❌ ${data.message || 'Registration failed'}`;
+          messageDiv.className = 'mb-4 p-3 rounded-lg bg-red-600 text-white';
+          messageDiv.classList.remove('hidden');
+        }
+      } 
+      catch (err) {
+        messageDiv.textContent = `❌ Error: ${err.message}`;
+        messageDiv.className = 'mb-4 p-3 rounded-lg bg-red-600 text-white';
+        messageDiv.classList.remove('hidden');
+      }
+      finally{
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+      }
+    })
+
+  </script>
+</body>
+</html>

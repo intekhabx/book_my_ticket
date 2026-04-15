@@ -15,7 +15,7 @@ import pg from "pg";
 import pool from './src/common/config/db.config.js';
 import authRoute from './src/module/auth/auth.route.js';
 import cookieParser from 'cookie-parser';
-import { isLoggedIn } from './src/module/auth/auth.middleware.js';
+import { isLoggedIn, checkPageAuth } from './src/module/auth/auth.middleware.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,14 +34,30 @@ const port = process.env.PORT || 8080;
 // });
 
 const app = new express();
-app.use(cors());
+app.set("view engine", "ejs");
+app.set("views", "./views");
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser())
 
 app.use('/api/auth', authRoute)
 
-app.get("/", isLoggedIn, (req, res) => {
+// Register page
+app.get("/register", (req, res) => {
+  res.render("register");
+});
+
+// Login page
+app.get("/login", (req, res) => {
+  res.render("login");
+});
+
+// Home/Dashboard - Protected Route (redirects to /login if not authenticated)
+app.get("/", checkPageAuth, (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 //get all seats
@@ -52,7 +68,7 @@ app.get("/seats", isLoggedIn, async (req, res) => {
 
 //book a seat give the seatId and your name
 
-app.put("/:id/:name", async (req, res) => {
+app.put("/:id/:name", isLoggedIn, async (req, res) => {
   try {
     const id = req.params.id;
     const name = req.params.name;
@@ -88,6 +104,20 @@ app.put("/:id/:name", async (req, res) => {
     console.log(ex);
     res.send(500);
   }
+});
+
+// Global Error Handler Middleware
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  
+  console.error(`[Error] ${statusCode}: ${message}`);
+  
+  res.status(statusCode).json({
+    success: false,
+    message,
+    statusCode
+  });
 });
 
 app.listen(port, () => console.log("Server starting on port: " + port));

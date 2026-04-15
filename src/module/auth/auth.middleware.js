@@ -4,29 +4,78 @@ import { verifyAccessToken } from "../../common/utils/jwt.utils.js";
 
 
 const isLoggedIn = async (req, res, next)=>{
-  let token;
-  if(req.headers.authorization?.startsWith("Bearer")){
-    token = req.headers.authorization.split(" ")[1];
-  }
+  try {
+    let token;
+    if(req.headers.authorization?.startsWith("Bearer")){
+      token = req.headers.authorization.split(" ")[1];
+    }
 
-  if(!token) throw ApiError.unAuthorize("Not Authenticated");
+    if(!token) {
+      throw ApiError.unAuthorize("Not Authenticated");
+    }
 
-  const decoded = verifyAccessToken(token);
-  const result = await pool.query(
-    `SELECT id, email FROM users WHERE id = $1`,
-    [decoded.id]
-  );
+    const decoded = verifyAccessToken(token);
+    
+    const result = await pool.query(
+      `SELECT id, email FROM users WHERE id = $1`,
+      [decoded.id]
+    );
 
-  if(result.rowCount === 0){
-    throw ApiError.unAuthorize("Not authorized user")
+    if(result.rowCount === 0){
+      throw ApiError.unAuthorize("Not authorized user")
+    }
+    
+    const user = result.rows[0];
+    req.user = {
+      id: user.id,
+      email: user.email,
+    }
+    next();
+  } catch (error) {
+    console.error('isLoggedIn error:', error.message);
+    next(error);
   }
-  
-  const user = result.rows[0];
-  req.user = {
-    id: user.id,
-    email: user.email,
+}
+
+// For EJS page routes - redirects to login instead of throwing error
+const checkPageAuth = async (req, res, next) => {
+  try {
+    // Check token in Authorization header (for API calls)
+    let token = req.headers.authorization?.startsWith("Bearer") 
+      ? req.headers.authorization.split(" ")[1]
+      : null;
+    
+    // If not in header, check in cookies (for page routes)
+    if (!token) {
+      token = req.cookies.accessToken;
+    }
+
+    if (!token) {
+      // console.log('checkPageAuth: No token found');
+      return res.redirect("/login");
+    }
+
+    const decoded = verifyAccessToken(token);
+    
+    const result = await pool.query(
+      `SELECT id, email FROM users WHERE id = $1`,
+      [decoded.id]
+    );
+
+    if(result.rowCount === 0){
+      return res.redirect("/login");
+    }
+    
+    const user = result.rows[0];
+    req.user = {
+      id: user.id,
+      email: user.email,
+    }
+    next();
+  } catch (error) {
+    console.error('checkPageAuth error:', error.message);
+    res.redirect("/login");
   }
-  next();
 }
 
 
@@ -40,4 +89,4 @@ const isLoggedIn = async (req, res, next)=>{
 // }
 
 
-export {isLoggedIn}
+export {isLoggedIn, checkPageAuth}

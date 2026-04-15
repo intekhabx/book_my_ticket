@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - ChaiCode Cinema</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-white flex items-center justify-center min-h-screen">
+
+  <div class="w-full max-w-md bg-slate-900 p-8 rounded-2xl shadow-xl">
+
+    <h2 class="text-2xl font-bold text-center text-cyan-400 mb-6">
+      Login
+    </h2>
+
+    <div id="message" class="mb-4 p-3 rounded-lg hidden"></div>
+
+    <form id="loginForm" class="space-y-4">
+
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="Email"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <input
+        id="password"
+        type="password"
+        name="password"
+        placeholder="Password"
+        class="w-full p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-cyan-400"
+        required
+      />
+
+      <button
+        id="submitBtn"
+        class="w-full bg-blue-500 hover:bg-blue-600 transition p-3 rounded-lg font-semibold"
+      >
+        Login
+      </button>
+    </form>
+
+    <p class="text-center text-sm mt-4 text-gray-400">
+      Don't have an account?
+      <a href="/register" class="text-cyan-400 hover:underline">Register</a>
+    </p>
+
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const messageDiv = document.getElementById('message');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const loginData = {
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include', // Ensure cookies are sent/received
+          body: JSON.stringify(loginData)
+        });
+
+        const data = await response.json();
+        console.log('Login response:', response.status, data);
+
+        if (response.ok && data.data && data.data.newAccessToken) {
+          const accessToken = data.data.newAccessToken;
+
+          // Store access token in localStorage
+          localStorage.setItem('accessToken', accessToken);
+          
+          // Also store in cookie so server-side middleware can read it
+          document.cookie = `accessToken=${accessToken}; path=/; max-age=${24*60*60}`;
+          
+          console.log('Token stored in localStorage and cookie, redirecting...');
+
+          messageDiv.textContent = '✅ Login successful! Redirecting...';
+          messageDiv.className = 'mb-4 p-3 rounded-lg bg-green-600 text-white';
+          messageDiv.classList.remove('hidden');
+
+          // Redirect after 800ms
+          setTimeout(() => {
+            console.log('Redirecting to home');
+            window.location.href = '/';
+          }, 800);
+        } else {
+          console.error('Login response issue:', {
+            ok: response.ok, 
+            data: data,
+            hasNewAccessToken: data.data?.newAccessToken ? 'yes' : 'no'
+          });
+          messageDiv.textContent = `❌ ${data.message || 'Login failed'}`;
+          messageDiv.className = 'mb-4 p-3 rounded-lg bg-red-600 text-white';
+          messageDiv.classList.remove('hidden');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        messageDiv.textContent = `❌ Error: ${error.message}`;
+        messageDiv.className = 'mb-4 p-3 rounded-lg bg-red-600 text-white';
+        messageDiv.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
+      }
+    });
+  </script>
+</html>
